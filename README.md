@@ -58,5 +58,5 @@ showcasing that navigating to a route with a slash does result in a `200` respon
 
 > [!NOTE]
 > Disclaimer:
-> The `.test.sh` script was shamefully copied and tweaked from
+> The `.test.sh` script was shamelessly copied and tweaked from
 > https://github.com/gabrielf/wrangler-api-route-trailing-slash
