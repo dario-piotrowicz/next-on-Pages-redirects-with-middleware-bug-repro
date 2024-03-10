@@ -1,58 +1,62 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`c3`](https://developers.cloudflare.com/pages/get-started/c3).
+# Next-on-Pages middleware redirect bug reproduction
 
-## Getting Started
+This issue shows a bug in the current `@cloudflare/next-on-pages` (as of `1.10.0`) where redirections due to the
+default trailing slash removal are not properly applied when a middleware is present.
 
-First, run the development server:
+Meaning that if you build the application and navigate to `/api/hello/` you get the expected route's result (a `Hello World` message)
+but the response is a `200` and there is no redirection to `/api/hello`.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Reproduction steps
+
+Install the dependencies with:
+```sh
+$ npm i
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Manual Test
 
-## Cloudflare integration
+Preview the application using next-on-pages via:
+```sh
+$ npm run preview
+```
 
-Besides the `dev` script mentioned above `c3` has added a few extra scripts that allow you to integrate the application with the [Cloudflare Pages](https://pages.cloudflare.com/) environment, these are:
-  - `pages:build` to build the application for Pages using the [`@cloudflare/next-on-pages`](https://github.com/cloudflare/next-on-pages) CLI
-  - `preview` to locally preview your Pages application using the [Wrangler](https://developers.cloudflare.com/workers/wrangler/) CLI
-  - `deploy` to deploy your Pages application using the [Wrangler](https://developers.cloudflare.com/workers/wrangler/) CLI
+navigate to `/api/hello/` with your network tab open and notice
+how no redirection nor `308` response is ever returned
 
-> __Note:__ while the `dev` script is optimal for local development you should preview your Pages application as well (periodically or before deployments) in order to make sure that it can properly work in the Pages environment (for more details see the [`@cloudflare/next-on-pages` recommended workflow](https://github.com/cloudflare/next-on-pages/blob/05b6256/internal-packages/next-dev/README.md#recommended-workflow))
+(while running the application with `next dev` presents such redirection)
 
-### Bindings
+### Automated Test
 
-Cloudflare [Bindings](https://developers.cloudflare.com/pages/functions/bindings/) are what allows you to interact with resources available in the Cloudflare Platform.
+then `test.sh` builds the project, starts it using both `npm run dev` and `next-on-pages`/`wrangler`, runs test cases and kills the server.
 
-You can use bindings during development, when previewing locally your application and of course in the deployed application:
+Run `./test.sh` to run a test case against both `npm run dev` and `next-on-pages`/`wrangler`.
 
-- To use bindings in dev mode you need to define them in the `next.config.js` file under `setupDevBindings`, this mode uses the `next-dev` `@cloudflare/next-on-pages` submodule. For more details see its [documentation](https://github.com/cloudflare/next-on-pages/blob/05b6256/internal-packages/next-dev/README.md).
+You should see the following result:
+```
 
-- To use bindings in the preview mode you need to add them to the `pages:preview` script accordingly to the `wrangler pages dev` command. For more details see its [documentation](https://developers.cloudflare.com/workers/wrangler/commands/#dev-1) or the [Pages Bindings documentation](https://developers.cloudflare.com/pages/functions/bindings/).
+####################################################################################
 
-- To use bindings in the deployed application you will need to configure them in the Cloudflare [dashboard](https://dash.cloudflare.com/). For more details see the  [Pages Bindings documentation](https://developers.cloudflare.com/pages/functions/bindings/).
 
-#### KV Example
+starting npm run dev…
+appending output to nohup.out
+..
+## npm run dev
+ * With slash: 308
+ * Without slash:    200
 
-`c3` has added for you an example showing how you can use a KV binding.
+starting wrangler…
+appending output to nohup.out
+....................................................................................................
 
-In order to enable the example:
-- Search for javascript/typescript lines containing the following comment:
-  ```ts
-  // KV Example:
-  ```
-  and uncomment the commented lines below it.
-- Do the same in the `wrangler.toml` file, where
-  the comment is:
-  ```
-  # KV Example:
-  ```
+## wrangler
+ * With slash: 200 ❗️
+ * Without slash:    200
 
-After doing this you can run the `dev` or `preview` script and visit the `/api/hello` route to see the example in action.
+```
 
-Finally, if you also want to see the example work in the deployed application make sure to add a `MY_KV` binding to your Pages application in its [dashboard kv bindings settings section](https://dash.cloudflare.com/?to=/:account/pages/view/:pages-project/settings/functions#kv_namespace_bindings_section). After having configured it make sure to re-deploy your application.
+showcasing that navigating to a route with a slash does result in a `200` response when using next-on-pages (while when using the standard next dev server you do get the expected `308`).
+
+> [!NOTE]
+> Disclaimer:
+> The `.test.sh` script was shamefully copied and tweaked from
+> https://github.com/gabrielf/wrangler-api-route-trailing-slash
